@@ -1,9 +1,5 @@
-
-
-const byte ledPin1 = 5;
-const byte ledPin2 = 4;
-const byte ledPin3 = 0;
-const byte ledPin4 = 2;
+const int CHANNELS = 4;
+const int LED_PINS[CHANNELS] = {5, 4, 0, 2};
 const byte interruptPin = 14;
 const byte interruptPin2 = 12;
 byte state = 0;
@@ -13,15 +9,15 @@ int count = 0;
 
 void setup()
 {
-  Serial.begin(74880);
+  Serial.begin(115200);
   pinMode(interruptPin, INPUT_PULLUP);
   pinMode(interruptPin2, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(interruptPin), handleActionInterrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), handleActionInterrupt, FALLING);
   attachInterrupt(digitalPinToInterrupt(interruptPin2), handleModeInterrupt, RISING);
-  pinMode(ledPin1, OUTPUT);
-  pinMode(ledPin2, OUTPUT);
-  pinMode(ledPin3, OUTPUT);
-  pinMode(ledPin4, OUTPUT);
+  for (int i = 0; i < CHANNELS; i++)
+  {
+    pinMode(LED_PINS[i], OUTPUT);
+  }
   Serial.println("SETUP DONE");
 }
 
@@ -41,10 +37,10 @@ void dayLoop()
 {
   if (state == 0)
   {
-    digitalWrite(ledPin1, LOW);
-    digitalWrite(ledPin2, LOW);
-    digitalWrite(ledPin3, LOW);
-    digitalWrite(ledPin4, LOW);
+    for (int i = 0; i < CHANNELS; i++)
+    {
+      digitalWrite(LED_PINS[i], LOW);
+    }
     delay(500);
   }
   else
@@ -53,6 +49,7 @@ void dayLoop()
     delay(3000);
     state = 0;
     logModeState();
+    fadeDown();
   }
 }
 
@@ -60,25 +57,16 @@ void sessionLoop()
 {
   if (state == 0)
   {
-    digitalWrite(ledPin1, HIGH);
-    digitalWrite(ledPin2, HIGH);
-    digitalWrite(ledPin3, HIGH);
-    digitalWrite(ledPin4, HIGH);
-    delay(100);
-
-    digitalWrite(ledPin1, LOW);
-    digitalWrite(ledPin2, LOW);
-    digitalWrite(ledPin3, LOW);
-    digitalWrite(ledPin4, LOW);
-    delay(100);
+    upCycleSlow();
   }
   else
   {
-    digitalWrite(ledPin1, HIGH);
-    digitalWrite(ledPin2, HIGH);
-    digitalWrite(ledPin3, HIGH);
-    digitalWrite(ledPin4, HIGH);
-    delay(10);
+    bool isReleased = digitalRead(interruptPin);
+    if (isReleased == true)
+    {
+      upCycleFast();
+      state = 0;
+    }
   }
 }
 
@@ -86,9 +74,9 @@ void fadeUp()
 {
   for (int i = 0; i < 1023; i++)
   {
-    for (int currentLedPin = 0; currentLedPin <= 4; currentLedPin = currentLedPin++)
+    for (int c = 0; c < CHANNELS; c++)
     {
-      analogWrite(currentLedPin, i);
+      analogWrite(LED_PINS[c], i);
     }
     delay(1);
   }
@@ -96,11 +84,41 @@ void fadeUp()
 
 void fadeDown()
 {
-  for (int i = 1023; i > 0; i++)
+  for (int i = 1023; i > 0; i = i - 1)
   {
-    for (int currentLedPin = 0; currentLedPin <= 4; currentLedPin = currentLedPin++)
+    for (int c = 0; c < CHANNELS; c++)
     {
-      analogWrite(currentLedPin, i);
+      analogWrite(LED_PINS[c], i);
+    }
+    delay(1);
+  }
+}
+
+void upCycleSlow()
+{
+  int offset = 255;
+
+  for (int i = 1023; i > 0; i = i - 1)
+  {
+    for (int c = 0; c < CHANNELS; c++)
+    {
+      int brightness = (i + c * offset) % 1023;
+      analogWrite(LED_PINS[c], brightness);
+    }
+    delay(5);
+  }
+}
+
+void upCycleFast()
+{
+  int offset = 255;
+
+  for (int i = 1023; i > 0; i = i - 1)
+  {
+    for (int c = 0; c < CHANNELS; c++)
+    {
+      int brightness = (i + c * offset) % 1023;
+      analogWrite(LED_PINS[c], brightness);
     }
     delay(1);
   }
